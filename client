@@ -1,0 +1,53 @@
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
+#define PORT 9002
+#define SIZE 1024
+
+int main()
+{
+    int sockfd;
+    char buffer[SIZE];
+
+    struct sockaddr_in server_addr;
+    socklen_t server_len = sizeof(server_addr);
+
+    /* Create UDP socket */
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    if (sockfd < 0)
+    {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    /* Server address */
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT);
+    inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr);
+
+    /* Get input from user */
+    printf("Enter a new-generation English sentence:\n");
+    fgets(buffer, SIZE, stdin);
+
+    /* Send to server */
+    sendto(sockfd, buffer, strlen(buffer), 0,
+           (struct sockaddr *)&server_addr,
+           sizeof(server_addr));
+
+    /* Receive translated sentence */
+    int n = recvfrom(sockfd, buffer, SIZE - 1, 0,
+                     (struct sockaddr *)&server_addr,
+                     &server_len);
+
+    buffer[n] = '\0';
+
+    printf("\nFormal English: %s\n", buffer);
+
+    close(sockfd);
+
+    return 0;
+}
