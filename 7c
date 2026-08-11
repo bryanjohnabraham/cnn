@@ -1,0 +1,72 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
+#define PORT 9002
+#define BUFFER_SIZE 1024
+
+int main()
+{
+    int sockfd;
+    struct sockaddr_in server;
+
+    char buffer[BUFFER_SIZE];
+
+    // Create TCP socket
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0)
+    {
+        perror("Socket creation failed");
+        exit(1);
+    }
+
+    // Server address
+    server.sin_family = AF_INET;
+    server.sin_port = htons(PORT);
+    inet_pton(AF_INET, "127.0.0.1",
+              &server.sin_addr);
+
+    // Connect to server
+    if (connect(sockfd,
+                (struct sockaddr *)&server,
+                sizeof(server)) < 0)
+    {
+        perror("Connection failed");
+        close(sockfd);
+        exit(1);
+    }
+
+    printf("Connected to server!\n");
+
+    while (1)
+    {
+        printf("Enter message: ");
+
+        fgets(buffer, BUFFER_SIZE, stdin);
+
+        // Send message
+        send(sockfd, buffer, strlen(buffer), 0);
+
+        // Receive response
+        int n = recv(sockfd, buffer,
+                     BUFFER_SIZE - 1, 0);
+
+        if (n <= 0)
+        {
+            printf("Server disconnected.\n");
+            break;
+        }
+
+        buffer[n] = '\0';
+
+        printf("Server: %s", buffer);
+    }
+
+    close(sockfd);
+
+    return 0;
+}
