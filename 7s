@@ -1,0 +1,98 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+
+#define PORT 9002
+#define BUFFER_SIZE 1024
+
+int main()
+{
+    int server_fd, client_fd;
+    struct sockaddr_in server, client;
+    socklen_t client_len = sizeof(client);
+
+    char buffer[BUFFER_SIZE];
+
+    // Create TCP socket
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (server_fd < 0)
+    {
+        perror("Socket creation failed");
+        exit(1);
+    }
+
+    // Server address
+    server.sin_family = AF_INET;
+    server.sin_port = htons(PORT);
+    server.sin_addr.s_addr = INADDR_ANY;
+
+    // Bind socket
+    if (bind(server_fd, (struct sockaddr *)&server,
+             sizeof(server)) < 0)
+    {
+        perror("Bind failed");
+        close(server_fd);
+        exit(1);
+    }
+
+    // Listen for clients
+    listen(server_fd, 5);
+
+    printf("Server started...\n");
+    printf("Waiting for clients...\n");
+
+    while (1)
+    {
+        // Accept client
+        client_fd = accept(server_fd,
+                           (struct sockaddr *)&client,
+                           &client_len);
+
+        if (client_fd < 0)
+        {
+            perror("Accept failed");
+            continue;
+        }
+
+        printf("Client connected.\n");
+
+        // Create child process
+        if (fork() == 0)
+        {
+            // Child process does not need server socket
+            close(server_fd);
+
+            while (1)
+            {
+                // Receive message
+                int n = recv(client_fd, buffer,
+                             BUFFER_SIZE - 1, 0);
+
+                if (n <= 0)
+                    break;
+
+                buffer[n] = '\0';
+
+                printf("Client: %s", buffer);
+
+                // Send same message back
+                send(client_fd, buffer, strlen(buffer), 0);
+            }
+
+            close(client_fd);
+            exit(0);
+        }
+
+        // Parent does not need client socket
+        close(client_fd);
+    }
+
+    close(server_fd);
+
+    return 0;
+}
