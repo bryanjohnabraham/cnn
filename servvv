@@ -1,0 +1,93 @@
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
+#define PORT 9002
+#define SIZE 1024
+
+void replace(char *str, const char *old, const char *new)
+{
+    char buffer[SIZE];
+    char *pos;
+
+    while ((pos = strstr(str, old)) != NULL)
+    {
+        buffer[0] = '\0';
+
+        strncat(buffer, str, pos - str);
+        strcat(buffer, new);
+        strcat(buffer, pos + strlen(old));
+
+        strcpy(str, buffer);
+    }
+}
+
+int main()
+{
+    int sockfd;
+    char buffer[SIZE];
+
+    struct sockaddr_in server_addr;
+    struct sockaddr_in client_addr;
+
+    socklen_t client_len = sizeof(client_addr);
+
+    /* Create UDP socket */
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    if (sockfd < 0)
+    {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    /* Server address */
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT);
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+
+    /* Bind socket */
+    if (bind(sockfd, (struct sockaddr *)&server_addr,
+             sizeof(server_addr)) < 0)
+    {
+        perror("Bind failed");
+        return 1;
+    }
+
+    printf("Server is waiting for message...\n");
+
+    /* Receive message */
+    int n = recvfrom(sockfd, buffer, SIZE - 1, 0,
+                     (struct sockaddr *)&client_addr,
+                     &client_len);
+
+    buffer[n] = '\0';
+
+    printf("Received: %s\n", buffer);
+
+    /* Replace abbreviations */
+    replace(buffer, "tbh", "to be honest");
+    replace(buffer, "ig", "I guess");
+    replace(buffer, "tbf", "to be fair");
+    replace(buffer, "atm", "at the moment");
+    replace(buffer, "irl", "in real life");
+    replace(buffer, "lol", "laughing out loud");
+    replace(buffer, "asap", "as soon as possible");
+    replace(buffer, "omg", "oh my God");
+    replace(buffer, "ttyl", "talk to you later");
+    replace(buffer, "idk", "I don't know");
+    replace(buffer, "nvm", "never mind");
+
+    printf("Translated: %s\n", buffer);
+
+    /* Send back to client */
+    sendto(sockfd, buffer, strlen(buffer), 0,
+           (struct sockaddr *)&client_addr,
+           client_len);
+
+    close(sockfd);
+
+    return 0;
+}
